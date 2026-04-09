@@ -17,6 +17,12 @@ output/*.mp4
 output/*.mov
 output/*.avi
 
+# 생성된 TTS 오디오
+output/tts/
+
+# BGM / 오디오 바이너리
+*.mp3
+
 # 에셋 (용량 큰 바이너리)
 assets/
 
