@@ -1,0 +1,15 @@
+{
+    "timeline_settings": {
+        "770401F6-2689-4fcb-8485-D137FB5B205A": {
+            "adsorb_enabled": true,
+            "linkage_enabled": false
+        }
+    },
+    "track_settings": {
+        "58C5CF03-E2A8-47de-B9D6-3FE162FC2E49": {
+            "height": 113
+        }
+    },
+    "tracking_adjustment_settings_autosmooth": false,
+    "tracking_adjustment_settings_traject": false
+}

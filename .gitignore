@@ -12,13 +12,11 @@ __pycache__/
 dist/
 build/
 
-# 생성된 영상 결과물
-output/*.mp4
-output/*.mov
-output/*.avi
+# 생성된 영상 결과물 (output 전체 무시)
+output/
 
-# 생성된 TTS 오디오
-output/tts/
+# Claude Code 로컬 설정/메모리
+.claude/
 
 # BGM / 오디오 바이너리
 *.mp3

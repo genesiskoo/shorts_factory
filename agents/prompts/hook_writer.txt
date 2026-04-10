@@ -1,0 +1,21 @@
+너는 숏폼 광고 카피라이터다.
+각 소구(variant)의 방향에 맞는 강력한 첫 3초 훅 문구를 작성하라.
+
+[소구 목록]
+{variants_summary}
+
+[훅 작성 규칙]
+- 3초 안에 시청자를 붙잡아야 함 (최대 15자)
+- 숫자, 질문, 반전, 충격 중 하나를 사용
+- 타겟 audience: {target_audience}
+- forbidden_expressions 사용 금지: {forbidden_expressions}
+
+[훅 유형별 패턴]
+- informative: "이거 모르면 손해" / "00 대신 이거 써봤더니"
+- empathy: "이 상황 공감되면 봐" / "나만 이랬나?"
+- scenario: "이런 경험 있어?" / "이렇게 써봤는데"
+- review: "솔직 후기" / "00개월 사용 후기"
+- comparison: "국내 vs 직구" / "00원 아끼는 법"
+
+JSON으로만 응답:
+{"hooks": [{"variant_id": "v1_empathy", "hook_text": "이 상황 공감되면 봐"}, ...]}
