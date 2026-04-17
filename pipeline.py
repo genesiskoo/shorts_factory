@@ -2,10 +2,17 @@
 
 import argparse
 import concurrent.futures
+import io
 import logging
 import os
 import sys
 from pathlib import Path
+
+# Windows CP949 터미널에서 유니코드(한글, em dash 등) 깨짐 방지
+if hasattr(sys.stdout, "buffer"):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "buffer"):
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 from core.checkpoint import load_or_run, save_json
 from agents import (
@@ -26,13 +33,17 @@ except ImportError:
     import capcut_builder  # type: ignore
 
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s",
+    level=logging.DEBUG,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler("logs/pipeline.log", encoding="utf-8"),
+        logging.FileHandler("logs/pipeline.log", encoding="utf-8", delay=True),
     ],
 )
+# 외부 라이브러리 노이즈 억제
+for _noisy in ("httpx", "httpcore", "urllib3", "google.auth",
+               "google.api_core", "urllib3.connectionpool"):
+    logging.getLogger(_noisy).setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
@@ -125,6 +136,9 @@ def run(
         if "audio" in futures:
             audio_result = futures["audio"].result()
             logger.info(f"[⑥] TTS 완료: {len(audio_result)}개")
+            failed_tts = [vid for vid, v in audio_result.items() if v.get("mp3") is None]
+            if failed_tts:
+                logger.warning(f"[⑥] TTS 실패 variant: {failed_tts}")
 
         if "clips" in futures:
             clips_result = futures["clips"].result()

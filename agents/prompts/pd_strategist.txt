@@ -31,7 +31,8 @@
 
 [규칙]
 - 5개 소구(variants)는 서로 다른 hook_type 사용
-- 같은 이미지를 다른 소구에서 재사용해도 되지만 i2v_prompt는 달라야 함
+- 같은 source_image에 대한 i2v_prompt는 모든 variant에서 반드시 동일하게 사용하라. 즉 img_1은 파일 전체에서 하나의 i2v_prompt만 사용한다. variant 간 차별화는 클립 순서(timeline 배치)와 TTS 대본으로 표현하라.
+- 전체 5개 variant에서 유니크 (source_image, i2v_prompt) 조합은 이미지 수와 동일하게 유지하라 (이미지 4장이면 유니크 조합 최대 4개).
 - source_image는 반드시 실제 존재하는 이미지 번호 (img_1, img_2, ...)만 사용
 - source_reliability가 "low"면 informative/comparison 대신 empathy/scenario 비중을 높여라
 - forbidden_expressions에 있는 표현은 scene 설명에도 사용하지 마라

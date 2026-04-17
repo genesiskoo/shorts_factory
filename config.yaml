@@ -15,12 +15,13 @@ llm:
 tts:
   provider: elevenlabs
   voice: Matilda
-  model: eleven_multilingual_v2
+  model: eleven_v3
   api_key: "${ELEVENLABS_API_KEY}"
 
 i2v:
-  provider: grok
-  api_key: "${XAI_API_KEY}"
+  provider: veo
+  model: veo-3.1-lite-generate-preview
+  api_key: "${GEMINI_API_KEY}"
 
 paths:
   template_dir: "./templates/capcut_template"

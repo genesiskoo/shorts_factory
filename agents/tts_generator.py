@@ -109,10 +109,13 @@ def run(scripts_final: dict, output_dir: str) -> dict:
                 apply_text_normalization="on",
             )
 
-            # MP3 저장
-            audio_bytes = bytes(tts_response.audio_base64) if isinstance(
-                tts_response.audio_base64, (bytes, bytearray)
-            ) else __import__("base64").b64decode(tts_response.audio_base64)
+            # MP3 저장 (SDK v2.x: audio_base_64, 구버전: audio_base64)
+            raw_audio = getattr(tts_response, "audio_base_64", None) \
+                     or getattr(tts_response, "audio_base64", None)
+            if raw_audio is None:
+                raise ValueError(f"오디오 데이터 없음. 응답 필드: {[a for a in dir(tts_response) if not a.startswith('_')]}")
+            audio_bytes = bytes(raw_audio) if isinstance(raw_audio, (bytes, bytearray)) \
+                else __import__("base64").b64decode(raw_audio)
 
             mp3_path.write_bytes(audio_bytes)
 
@@ -133,7 +136,7 @@ def run(scripts_final: dict, output_dir: str) -> dict:
 
         except Exception as e:
             logger.error(f"[tts_generator] {variant_id} 실패: {e}")
-            result[variant_id] = {"error": str(e)}
+            result[variant_id] = {"mp3": None, "srt": None, "error": str(e)}
 
     logger.info(f"[tts_generator] 전체 완료: {len(result)}개")
     return result

@@ -55,7 +55,7 @@ def run(hooks: dict, strategy: dict, profile: dict, review_feedback: list | None
                     notes.append("감성 키워드 중복 → 다른 표현으로 교체")
                 if notes:
                     lines.append(f"- {vid}: " + ", ".join(notes))
-        if len(lines) > 1:
+        if lines:
             feedback_section = "\n".join(lines) + "\n\n"
 
     prompt = _fmt(
