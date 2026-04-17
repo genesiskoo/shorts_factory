@@ -15,13 +15,13 @@
    - clip_num: 1부터 시작하는 번호
    - scene: 어떤 그림이 보여야 하는지 구체적 묘사 (한국어)
    - source_image: "img_1", "img_2", ... 중 실제 존재하는 번호만 사용
-   - i2v_prompt: Grok Imagine에 넣을 영문 프롬프트 (6초 클립 기준)
+   - i2v_prompt: Grok Imagine에 넣을 영문 프롬프트 (6~8초 클립 기준)
    - timeline: "intro", "middle", "climax", "outro" 중 하나
 
 [I2V 프롬프트 작성 규칙]
 - 누끼컷(흰 배경) 이미지: "slow zoom in rotation on white background, soft studio lighting, product showcase"
 - 라이프스타일 이미지: "gentle camera movement revealing the product in use, warm natural lighting"
-- 각 클립은 6초 분량으로 부드러운 카메라 무빙 포함
+- 각 클립은 6~8초 분량으로 부드러운 카메라 무빙 포함
 - 영문만 사용, 구체적 동작 묘사 포함
 
 [예시 I2V 프롬프트]

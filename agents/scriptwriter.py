@@ -43,8 +43,8 @@ def run(hooks: dict, strategy: dict, profile: dict, review_feedback: list | None
             if not fb.get("passed"):
                 vid = fb.get("variant_id", "?")
                 notes = []
-                if fb.get("char_count", 0) > 100:
-                    notes.append(f"글자수 {fb['char_count']}자 → 반드시 100자 이내로 줄일 것")
+                if fb.get("char_count", 0) > 200:
+                    notes.append(f"글자수 {fb['char_count']}자 → 반드시 200자 이내로 줄일 것")
                 if fb.get("hook_score", 10) < 7:
                     notes.append(f"훅 점수 {fb['hook_score']} → 더 강한 훅 필요")
                 if not fb.get("no_forbidden_violation", True):

@@ -3,7 +3,7 @@
 
 [검수 기준]
 1. 훅 임팩트 (1~10): 3초 안에 시청자를 붙잡는가?
-2. 글자수 (pass/fail): 100자 이내인가? (직접 세어서 판단)
+2. 글자수 (pass/fail): 200자 이내인가? (직접 세어서 판단)
 3. 표현 위반 (pass/fail): forbidden_expressions 사용했는가?
 4. 소구 차별성 (1~10): 다른 소구와 충분히 다른가?
 5. TTS 친화도 (1~10): 자연스럽게 읽히는가?
@@ -11,7 +11,7 @@
 
 [합격 기준]
 - hook_score >= 7
-- char_count <= 100
+- char_count <= 200
 - no_forbidden_violation == true
 - differentiation_score >= 6
 - keyword_duplication == false

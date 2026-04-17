@@ -65,14 +65,14 @@ def run(scripts: dict, profile: dict) -> dict:
         if not result.get("scripts"):
             result["scripts"] = scripts.get("scripts", [])
 
-    # len() 하드체크: LLM 판단과 무관하게 100자 초과 시 강제 fail
+    # len() 하드체크: LLM 판단과 무관하게 200자 초과 시 강제 fail
     script_text_map = {
         s.get("variant_id"): s.get("script_text", "")
         for s in result.get("scripts", [])
     }
     for fb in result.get("feedback", []):
         actual_len = len(script_text_map.get(fb.get("variant_id", ""), ""))
-        if actual_len > 100:
+        if actual_len > 200:
             fb["char_count"] = actual_len
             fb["passed"] = False
             logger.warning(
