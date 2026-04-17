@@ -1,0 +1,9 @@
+venv/
+venv_web/
+__pycache__/
+*.pyc
+tasks.db
+tasks.db-journal
+uploads/
+logs/
+.env

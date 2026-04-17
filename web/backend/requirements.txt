@@ -1,0 +1,12 @@
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+sqlmodel==0.0.22
+python-multipart==0.0.12
+aiofiles==24.1.0
+pydantic==2.9.2
+
+# shorts_factory agents/core 의존성 (agents를 import하려면 필요)
+anthropic>=0.92.0
+elevenlabs>=2.41.0
+google-genai>=1.70.0
+pyyaml>=6.0
