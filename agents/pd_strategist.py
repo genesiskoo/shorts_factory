@@ -27,10 +27,20 @@ def _fmt(template: str, **kwargs) -> str:
     return re.sub(r"\{([a-zA-Z_][a-zA-Z0-9_]*)\}", replace, template)
 
 
-def run(profile: dict, images: list[str]) -> dict:
-    """상품 프로필 + 이미지 → strategy.json dict 반환."""
+def run(
+    profile: dict,
+    images: list[str],
+    image_count: int | None = None,
+) -> dict:
+    """상품 프로필 + 이미지 → strategy.json dict 반환.
 
-    logger.info("[pd_strategist] 시작")
+    image_count: variant당 생성할 클립 수. 미지정 시 len(images) 사용.
+    규약: 이미지 1장 = 클립 1개 (중복 금지). pipeline_runner에서
+    strategy를 한 번 더 정규화해 LLM 편차를 보정한다.
+    """
+
+    n = image_count if image_count is not None else len(images)
+    logger.info("[pd_strategist] 시작 (image_count=%d)", n)
     pro = GeminiClient("pro")
 
     # 이미지 인덱스 목록 (img_1, img_2, ...)
@@ -40,6 +50,7 @@ def run(profile: dict, images: list[str]) -> dict:
         _load_prompt("pd_strategist.txt"),
         product_profile=json.dumps(profile, ensure_ascii=False, indent=2),
         image_list=image_list,
+        image_count=n,
     )
 
     result = pro.call(prompt, images=images, json_mode=True)

@@ -5,8 +5,10 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTaskPolling } from "@/hooks/useTaskPolling";
+import { useCompletionNotification } from "@/hooks/useCompletionNotification";
 import { StepProgress } from "@/components/steps/StepProgress";
 import { SelectScripts } from "@/components/steps/SelectScripts";
+import { SelectTts } from "@/components/steps/SelectTts";
 import { ReviewTts } from "@/components/steps/ReviewTts";
 import { PromptReview } from "@/components/steps/PromptReview";
 import { SelectClips } from "@/components/steps/SelectClips";
@@ -20,6 +22,7 @@ export default function TaskPage() {
   const taskId = Number(params?.id);
 
   const { task, error, loading, refresh } = useTaskPolling(taskId);
+  useCompletionNotification(task);
 
   if (Number.isNaN(taskId)) {
     return <ErrorView message="잘못된 task_id" />;
@@ -45,6 +48,8 @@ export default function TaskPage() {
       return <StepProgress task={task} />;
     case "select_scripts":
       return <SelectScripts task={task} onChange={refresh} />;
+    case "select_tts":
+      return <SelectTts task={task} onChange={refresh} />;
     case "review_tts":
       return <ReviewTts task={task} onChange={refresh} />;
     case "review_prompts":

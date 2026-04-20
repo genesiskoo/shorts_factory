@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 import { API_BASE } from "@/lib/api";
 import type { TaskDetail } from "@/lib/types";
 
@@ -23,9 +24,9 @@ export function Complete({ task }: { task: TaskDetail }) {
     if (!task.output_dir) return;
     try {
       await navigator.clipboard.writeText(task.output_dir);
-      alert("경로를 클립보드에 복사했습니다.");
+      toast.success("경로를 클립보드에 복사했습니다.");
     } catch {
-      alert(task.output_dir);
+      toast.error(`클립보드 복사 실패: ${task.output_dir}`);
     }
   }
 
