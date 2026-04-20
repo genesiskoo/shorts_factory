@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -53,11 +54,16 @@ export function SelectTemplate({
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 p-8">
-      <header>
-        <h1 className="text-2xl font-bold">{task.product_name}</h1>
-        <p className="text-sm text-muted-foreground">
-          Step 10/11 · CapCut 템플릿 선택
-        </p>
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">{task.product_name}</h1>
+          <p className="text-sm text-muted-foreground">
+            Step 10/11 · CapCut 템플릿 선택
+          </p>
+        </div>
+        <Button asChild variant="ghost" size="sm">
+          <Link href="/">← 홈</Link>
+        </Button>
       </header>
 
       <Card>

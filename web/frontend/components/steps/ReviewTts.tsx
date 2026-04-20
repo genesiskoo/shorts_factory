@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -114,11 +115,16 @@ export function ReviewTts({
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 p-8">
-      <header>
-        <h1 className="text-2xl font-bold">{task.product_name}</h1>
-        <p className="text-sm text-muted-foreground">
-          Step 5/11 · TTS 검수 · {rows.length}개 variant
-        </p>
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">{task.product_name}</h1>
+          <p className="text-sm text-muted-foreground">
+            Step 5/11 · TTS 검수 · {rows.length}개 variant
+          </p>
+        </div>
+        <Button asChild variant="ghost" size="sm">
+          <Link href="/">← 홈</Link>
+        </Button>
       </header>
 
       {busyWithRegen && (

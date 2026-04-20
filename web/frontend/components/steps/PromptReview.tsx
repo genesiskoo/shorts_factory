@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -282,11 +283,16 @@ export function PromptReview({
 
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-8">
-      <header>
-        <h1 className="text-2xl font-bold">{task.product_name}</h1>
-        <p className="text-sm text-muted-foreground">
-          Step 6/11 · 영상 프롬프트 확인
-        </p>
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">{task.product_name}</h1>
+          <p className="text-sm text-muted-foreground">
+            Step 6/11 · 영상 프롬프트 확인
+          </p>
+        </div>
+        <Button asChild variant="ghost" size="sm">
+          <Link href="/">← 홈</Link>
+        </Button>
       </header>
 
       <Card className="border-amber-500/40 bg-amber-50/50 dark:bg-amber-950/20">

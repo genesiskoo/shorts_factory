@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -211,11 +212,16 @@ export function SelectClips({
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-8">
-      <header>
-        <h1 className="text-2xl font-bold">{task.product_name}</h1>
-        <p className="text-sm text-muted-foreground">
-          Step 8/11 · 클립 선택 · variant당 최소 {MIN_CLIPS_PER_VARIANT}개 유지
-        </p>
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">{task.product_name}</h1>
+          <p className="text-sm text-muted-foreground">
+            Step 8/11 · 클립 선택 · variant당 최소 {MIN_CLIPS_PER_VARIANT}개 유지
+          </p>
+        </div>
+        <Button asChild variant="ghost" size="sm">
+          <Link href="/">← 홈</Link>
+        </Button>
       </header>
 
       {violations.length > 0 && (

@@ -21,6 +21,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { SceneStoryboard } from "@/components/steps/SceneStoryboard";
@@ -150,6 +151,9 @@ export function SelectScripts({ task, onChange }: Props) {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/">← 홈</Link>
+          </Button>
           <Button
             variant="ghost"
             size="sm"

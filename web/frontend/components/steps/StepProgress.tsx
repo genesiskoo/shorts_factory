@@ -96,7 +96,12 @@ export function StepProgress({ task }: { task: TaskDetail }) {
             Step {stepNum}/11 · {title}
           </p>
         </div>
-        <Badge>{task.status}</Badge>
+        <div className="flex items-center gap-2">
+          <Badge>{task.status}</Badge>
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/">← 홈</Link>
+          </Button>
+        </div>
       </header>
 
       <Card>
