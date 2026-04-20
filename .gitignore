@@ -18,11 +18,22 @@ output/
 # Claude Code 로컬 설정/메모리
 .claude/
 
-# BGM / 오디오 바이너리
+# BGM / 오디오 / 영상 바이너리
 *.mp3
+*.mp4
 
 # 에셋 (용량 큰 바이너리)
 assets/
+
+# SQLite WAL/SHM (실행 중 임시 파일)
+*.db-shm
+*.db-wal
+
+# 코드 dump 작업 파일
+shorts_factory_code.md
+
+# 가상환경 (web/backend/venv_web 등)
+venv_web/
 
 # 로그
 logs/

@@ -18,12 +18,19 @@ from core.checkpoint import load_or_run, save_json
 from agents import (
     product_analyzer,
     pd_strategist,
+    storyboard_designer,
     hook_writer,
     scriptwriter,
+    scene_writer,
     script_reviewer,
     tts_generator,
     video_generator,
 )
+
+# Scene 기반 v2 파이프라인 (default). SHORTS_USE_LEGACY_AGENTS=1 → 기존 v1.
+_USE_LEGACY = os.getenv("SHORTS_USE_LEGACY_AGENTS", "").strip() in ("1", "true", "yes")
+_strategy_agent = pd_strategist if _USE_LEGACY else storyboard_designer
+_script_agent = scriptwriter if _USE_LEGACY else scene_writer
 
 # capcut_builder는 agents/ 또는 scripts/ 어느 쪽에 있어도 임포트
 try:
@@ -76,10 +83,11 @@ def run(
     )
     logger.info(f"[①] product_profile 완료: type={profile.get('product_type')}")
 
-    # ② PD [Pro]
+    # ② PD [Pro] — v2: storyboard_designer (scenes[]) / v1 legacy: pd_strategist (clips[])
+    logger.info("[②] %s (legacy=%s)", _strategy_agent.__name__, _USE_LEGACY)
     strategy = load_or_run(
         f"{out}/strategy.json",
-        pd_strategist.run,
+        _strategy_agent.run,
         profile, images,
     )
     logger.info(f"[②] strategy 완료: variants={len(strategy.get('variants', []))}개")
@@ -100,7 +108,7 @@ def run(
 
         scripts = load_or_run(
             f"{out}/scripts{suffix}.json",
-            scriptwriter.run,
+            _script_agent.run,
             hooks, strategy, profile,
             review_feedback=prev_feedback if attempt > 0 else None,
         )

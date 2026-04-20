@@ -9,16 +9,19 @@ import type { TaskDetail } from "@/lib/types";
  * - running / pending 상태는 계속 폴링
  * - awaiting_user / completed / failed 도달 시 한 번 더 fetch 후 폴링 중단
  *   (다음 action으로 transition 직후 상태 반영을 위해)
+ *
+ * refresh()는 awaiting_user 정지 상태에서 외부 액션 후 즉시 새 fetch를 강제할 때
+ * 사용. useState 기반이라 deps array에 정확히 반응한다.
  */
 export function useTaskPolling(taskId: number, intervalMs = 2000) {
   const [task, setTask] = useState<TaskDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshToken, setRefreshToken] = useState(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const refreshTokenRef = useRef(0);
 
   function refresh() {
-    refreshTokenRef.current += 1;
+    setRefreshToken((t) => t + 1);
   }
 
   useEffect(() => {
@@ -49,8 +52,7 @@ export function useTaskPolling(taskId: number, intervalMs = 2000) {
       cancelled = true;
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taskId, intervalMs, refreshTokenRef.current]);
+  }, [taskId, intervalMs, refreshToken]);
 
   return { task, error, loading, refresh };
 }

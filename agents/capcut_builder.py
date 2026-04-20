@@ -1,11 +1,13 @@
 """agents/capcut_builder.py — ⑧ 편집자 래퍼
 
-scripts/capcut_builder.py의 build_capcut_project()를 pipeline 인터페이스로 감싼다.
-기존 scripts/capcut_builder.py는 수정하지 않는다.
+scripts/capcut_builder.py::build_capcut_project()를 pipeline 인터페이스로 감싼다.
 """
 
+import json
 import logging
 import re
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -15,6 +17,33 @@ if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
 from capcut_builder import build_capcut_project  # type: ignore
+
+
+def _sanitize_project_name(name: str) -> str:
+    """CapCut 프로젝트 폴더명으로 안전한 문자열 반환.
+
+    Windows 파일명 금지 문자(/ \\ : * ? " < > |) 제거, 경로 탈출 차단(..),
+    양 끝 공백 trim, 너무 길면 80자로 컷. 한글/공백은 유지.
+    """
+    s = str(name or "").strip()
+    s = s.replace("..", "_")
+    for ch in '/\\:*?"<>|':
+        s = s.replace(ch, "_")
+    s = re.sub(r"\s+", " ", s).strip(" _")
+    return s[:80] or "project"
+
+
+def _build_project_name(product_name: str | None, variant_id: str) -> str:
+    """`{product_name}_{variant_id}` 형식 생성. product_name 누락/공백 시 variant_id만."""
+    vid = _sanitize_project_name(variant_id)
+    prod_raw = (product_name or "").strip()
+    if not prod_raw:
+        return vid
+    prod = _sanitize_project_name(prod_raw)
+    # sanitize 후 fallback("project")만 남는다면 product_name은 사실상 의미 없음
+    if not prod or prod == "project":
+        return vid
+    return f"{prod}_{vid}"
 
 logger = logging.getLogger(__name__)
 
@@ -61,17 +90,41 @@ def _srt_ts_to_sec(ts: str) -> float:
 
 
 def _get_mp3_duration(mp3_path: Path) -> float:
-    """MP3 길이 추정 (mutagen 없으면 20초 기본값)."""
+    """MP3 길이(초) 측정. ffprobe → mutagen 순. 둘 다 실패 시 RuntimeError.
+
+    이전엔 둘 다 실패 시 파일 크기 / 128kbps 추정으로 fallback했으나,
+    ElevenLabs/Typecast가 320kbps mp3를 출력하면 2.5배 부풀린 값을 반환해
+    capcut 빌드의 root duration을 왜곡(예: 22.55s mp3 → 55.23s 추정)했다.
+    silent 추정 fallback을 완전히 제거하고 명시적 실패로 전환.
+    """
+    if shutil.which("ffprobe"):
+        try:
+            proc = subprocess.run(
+                [
+                    "ffprobe", "-v", "error",
+                    "-show_entries", "format=duration",
+                    "-of", "json", str(mp3_path),
+                ],
+                capture_output=True, text=True, timeout=15,
+                encoding="utf-8", errors="replace",
+            )
+            if proc.returncode == 0:
+                dur_str = (json.loads(proc.stdout).get("format") or {}).get("duration")
+                if dur_str:
+                    return float(dur_str)
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError,
+                ValueError, json.JSONDecodeError) as e:
+            logger.warning("ffprobe failed for %s: %s — trying mutagen", mp3_path.name, e)
+
     try:
         from mutagen.mp3 import MP3
         return MP3(str(mp3_path)).info.length
-    except Exception:
-        # 대략 추정: 파일 크기 기반 (128kbps 기준)
-        try:
-            size_bytes = mp3_path.stat().st_size
-            return size_bytes / (128 * 1024 / 8)
-        except Exception:
-            return 20.0
+    except Exception as e:
+        raise RuntimeError(
+            f"mp3 duration 측정 실패 ({mp3_path.name}): "
+            f"ffprobe·mutagen 모두 사용 불가. ffprobe 설치 또는 "
+            f"`pip install mutagen` 필요. 마지막 에러: {e}"
+        ) from e
 
 
 def run(
@@ -105,16 +158,21 @@ def run(
         variant_id = var.get("variant_id", "unknown")
         logger.info(f"[capcut_builder] {variant_id} 프로젝트 생성 중...")
 
-        # 클립 정렬: timeline 순서 (intro → middle → climax → outro)
+        units = var.get("scenes") or var.get("clips") or []
         timeline_order = {"intro": 0, "middle": 1, "climax": 2, "outro": 3}
-        sorted_clips = sorted(
-            var.get("clips", []),
-            key=lambda c: timeline_order.get(c.get("timeline", "middle"), 1),
-        )
+
+        def _sort_key(u: dict) -> tuple[int, int]:
+            n = u.get("scene_num") if u.get("scene_num") is not None else u.get("clip_num")
+            if isinstance(n, int):
+                return (0, n)
+            return (1, timeline_order.get(u.get("timeline", "middle"), 1))
+
+        sorted_units = sorted(units, key=_sort_key)
 
         video_clips = []
-        for clip in sorted_clips:
-            clip_key = f"clip_{variant_id}_{clip.get('clip_num', 0)}"
+        for u in sorted_units:
+            num = u.get("scene_num") if u.get("scene_num") is not None else u.get("clip_num", 0)
+            clip_key = f"clip_{variant_id}_{num}"
             mp4 = clips_path / f"{clip_key}.mp4"
             if mp4.exists():
                 video_clips.append(str(mp4))
@@ -143,6 +201,12 @@ def run(
             or script.get("title", variant_id)
         )
 
+        # 프로젝트 폴더명: {product_name}_{variant_id} — CapCut UI에서 식별 가능
+        project_name = _build_project_name(
+            scripts.get("product_name") or script.get("title"),
+            variant_id,
+        )
+
         try:
             project_path = build_capcut_project(
                 template_dir=template_dir,
@@ -152,7 +216,7 @@ def run(
                 srt_entries=srt_entries,
                 bgm_path=_DEFAULT_BGM,
                 product_name=product_name,
-                project_name=variant_id,
+                project_name=project_name,
                 cta_text="구매링크는 프로필 링크 참고",
             )
             logger.info(f"[capcut_builder] {variant_id} 완료: {project_path}")

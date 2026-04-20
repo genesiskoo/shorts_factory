@@ -1,9 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import { toast } from "sonner";
+import { DropVariantButton } from "@/components/DropVariantButton";
 import { API_BASE, api } from "@/lib/api";
 import type { StrategyJson, StrategyVariant, TaskDetail } from "@/lib/types";
 
@@ -44,7 +53,7 @@ export function TimelinePreview({
       await api.nextStep(task.id, { step: "preview_timeline" });
       onChange();
     } catch (e) {
-      alert(e instanceof Error ? e.message : String(e));
+      toast.error(e instanceof Error ? e.message : String(e));
     } finally {
       setSubmitting(false);
     }
@@ -71,11 +80,16 @@ export function TimelinePreview({
 
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-8">
-      <header>
-        <h1 className="text-2xl font-bold">{task.product_name}</h1>
-        <p className="text-sm text-muted-foreground">
-          Step 9/11 · 타임라인 프리뷰
-        </p>
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">{task.product_name}</h1>
+          <p className="text-sm text-muted-foreground">
+            Step 9/11 · 타임라인 프리뷰
+          </p>
+        </div>
+        <Button asChild variant="ghost" size="sm">
+          <Link href="/">← 홈</Link>
+        </Button>
       </header>
 
       <Card className="border-blue-500/40 bg-blue-50/50 dark:bg-blue-950/20">
@@ -85,11 +99,40 @@ export function TimelinePreview({
         </CardContent>
       </Card>
 
-      <div className="space-y-6">
-        {variants.map((v) => (
-          <VariantPreview key={v.variant_id} task={task} variant={v} />
-        ))}
-      </div>
+      {variants.length === 1 ? (
+        <VariantPreview
+          task={task}
+          variant={variants[0]}
+          remainingCount={variants.length}
+          onDropped={onChange}
+          dropDisabled={submitting || task.status === "running"}
+        />
+      ) : variants.length > 1 ? (
+        <Tabs defaultValue={variants[0].variant_id} className="w-full">
+          <TabsList className="h-auto w-full flex-wrap justify-start gap-1 p-1">
+            {variants.map((v) => (
+              <TabsTrigger
+                key={v.variant_id}
+                value={v.variant_id}
+                className="data-[state=active]:font-semibold"
+              >
+                {v.variant_id}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          {variants.map((v) => (
+            <TabsContent key={v.variant_id} value={v.variant_id}>
+              <VariantPreview
+                task={task}
+                variant={v}
+                remainingCount={variants.length}
+                onDropped={onChange}
+                dropDisabled={submitting || task.status === "running"}
+              />
+            </TabsContent>
+          ))}
+        </Tabs>
+      ) : null}
 
       <div className="flex justify-end">
         <Button
@@ -107,9 +150,15 @@ export function TimelinePreview({
 function VariantPreview({
   task,
   variant,
+  remainingCount,
+  onDropped,
+  dropDisabled,
 }: {
   task: TaskDetail;
   variant: StrategyVariant;
+  remainingCount: number;
+  onDropped: () => void;
+  dropDisabled: boolean;
 }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
@@ -176,9 +225,18 @@ function VariantPreview({
           <span className="font-semibold">{variant.variant_id}</span>
           <Badge variant="outline">{clips.length}개 클립</Badge>
         </div>
-        <Button size="sm" onClick={togglePlay}>
-          {playing ? "⏸ 일시정지" : "▶ 재생"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" onClick={togglePlay}>
+            {playing ? "⏸ 일시정지" : "▶ 재생"}
+          </Button>
+          <DropVariantButton
+            taskId={task.id}
+            variantId={variant.variant_id}
+            remainingCount={remainingCount}
+            onDropped={onDropped}
+            disabled={dropDisabled}
+          />
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="grid gap-2" style={{

@@ -22,11 +22,25 @@ def _fmt(template: str, **kwargs) -> str:
     return re.sub(r"\{([a-zA-Z_][a-zA-Z0-9_]*)\}", replace, template)
 
 
-def run(hooks: dict, strategy: dict, profile: dict, review_feedback: list | None = None) -> dict:
-    """hooks + strategy + profile → scripts.json dict 반환."""
+def run(
+    hooks: dict,
+    strategy: dict,
+    profile: dict,
+    review_feedback: list | None = None,
+    target_char_count: int = 250,
+) -> dict:
+    """hooks + strategy + profile → scripts.json dict 반환.
 
-    logger.info("[scriptwriter] 시작")
+    target_char_count: 목표 글자수. 허용 범위 = ±20% (min=target*0.8, max=target*1.2).
+      기본 250자 → 200~300자 허용. TTS 약 35초 기준.
+    """
+
+    logger.info("[scriptwriter] 시작 (target=%d자)", target_char_count)
     flash = GeminiClient("flash")
+    target_char_min = max(int(target_char_count * 0.8), 50)
+    target_char_max = int(target_char_count * 1.2)
+    target_sec_min = max(int(target_char_count / 7), 5)
+    target_sec_max = max(int(target_char_count / 4.5), target_sec_min + 1)
 
     # 훅과 소구 방향 결합
     hook_map = {h["variant_id"]: h["hook_text"] for h in hooks.get("hooks", [])}
@@ -43,8 +57,16 @@ def run(hooks: dict, strategy: dict, profile: dict, review_feedback: list | None
             if not fb.get("passed"):
                 vid = fb.get("variant_id", "?")
                 notes = []
-                if fb.get("char_count", 0) > 200:
-                    notes.append(f"글자수 {fb['char_count']}자 → 반드시 200자 이내로 줄일 것")
+                actual_chars = fb.get("char_count", 0)
+                if actual_chars and not (target_char_min <= actual_chars <= target_char_max):
+                    if actual_chars > target_char_max:
+                        notes.append(
+                            f"글자수 {actual_chars}자 → {target_char_min}~{target_char_max}자 범위로 줄일 것"
+                        )
+                    else:
+                        notes.append(
+                            f"글자수 {actual_chars}자 → 너무 짧음. {target_char_min}~{target_char_max}자 범위로 늘릴 것"
+                        )
                 if fb.get("hook_score", 10) < 7:
                     notes.append(f"훅 점수 {fb['hook_score']} → 더 강한 훅 필요")
                 if not fb.get("no_forbidden_violation", True):
@@ -67,6 +89,11 @@ def run(hooks: dict, strategy: dict, profile: dict, review_feedback: list | None
         price_advantage=profile.get("price_advantage", "없음"),
         hooks_and_directions=hooks_and_directions,
         review_feedback=feedback_section,
+        target_char_count=target_char_count,
+        target_char_min=target_char_min,
+        target_char_max=target_char_max,
+        target_sec_min=target_sec_min,
+        target_sec_max=target_sec_max,
     )
 
     result = flash.call(prompt, json_mode=True)

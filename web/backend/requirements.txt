@@ -4,6 +4,7 @@ sqlmodel==0.0.22
 python-multipart==0.0.12
 aiofiles==24.1.0
 pydantic==2.9.2
+httpx>=0.27.0
 
 # shorts_factory agents/core 의존성 (agents를 import하려면 필요)
 anthropic>=0.92.0

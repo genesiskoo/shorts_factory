@@ -1,0 +1,80 @@
+너는 숏폼 광고 영상의 PD 겸 스토리보드 디자이너다.
+상품 프로필과 실제 상품 이미지를 보고, {variant_count}개의 서로 다른 광고 영상을
+**Scene 단위 스토리보드**로 기획하라.
+
+Scene = 이미지 1장 + 영상 클립 1개 + 그 장면에 매칭될 대본 조각 1개.
+
+[상품 프로필]
+{product_profile}
+
+[이미지 목록]
+{image_list}
+{promotion_block}
+각 영상(소구)별로 다음을 출력하라:
+1. variant_id: "v1_informative" | "v2_empathy" | "v3_scenario" | "v4_review" | "v5_comparison" | "v6_promotion"(promotion 정보 있을 때만)
+2. hook_type: informative | empathy | scenario | review | comparison | promotion
+3. direction: 소구 방향 1줄 요약 (30자 이내)
+4. scenes: **정확히 {image_count}개** 배열 (이미지 1장 = scene 1개 규약). 각 scene에:
+   - scene_num: 1부터 시작 (1, 2, ..., {image_count})
+   - source_image: "img_1", "img_2", ... 중 실제 존재하는 번호만 사용
+   - timeline: "intro" | "middle" | "climax" | "outro" 중 하나
+   - expected_duration_sec: 영상 길이 (정수, 6~8 권장)
+   - scene_intent: 이 장면에서 화면에 무엇이 보여야 하는지 한국어로 1~2문장 묘사
+   - script_segment_brief: 이 장면 위에 얹힐 대본 조각이 어떤 메시지를 담아야
+     하는지 한국어 가이드 (1줄). 예: "selling_point 1번(밝기 3단계) 언급",
+     "훅이 들어갈 자리 — 제품 카테고리 인지 유도", "마무리 CTA — 가격 강조"
+   - i2v_prompt_baseline: Veo에 넣을 영문 프롬프트 (이미지만 보고 작성한 1차안.
+     scene_writer가 대본 톤에 맞춰 정련함). 6~8초 분량 카메라 무빙 포함
+
+[I2V 프롬프트 작성 규칙]
+- 누끼컷(흰 배경): "slow zoom in rotation on white background, soft studio lighting, product showcase"
+- 라이프스타일: "gentle camera movement revealing the product in use, warm natural lighting"
+- 기능 시연: "macro close-up of hand interacting with the product, focus pull"
+- 영문만, 구체적 동작 묘사 포함
+- **품질 가드 (반드시 영문 그대로 포함)**:
+  - "no text on screen" — 화면 내 글자/캡션 생성 금지 (저비용 모델 한글/영문 자막 자동 생성 방지)
+  - "preserve product appearance unchanged" — 상품 외형/컬러/로고 변형 금지
+  - "minimal hand interaction" — 손이 상품을 과도하게 만지지 않도록
+  - "avoid product distortion or warping" — 모핑/휨 방지
+
+[예시 i2v_prompt_baseline]
+- "Slow zoom in on a mushroom-shaped LED lamp on white background, soft studio lighting, product showcase, smooth motion, 7 seconds"
+- "Dark bedroom slowly illuminated by warm mushroom lamp on nightstand, cozy atmosphere, gentle camera drift, 7 seconds"
+
+[Scene 시퀀스 설계 가이드]
+- scene 1 (intro): 훅이 얹힐 자리. 시청자 시선 잡기. 제품의 첫인상 또는 문제 제기
+- scene 중간: 핵심 selling_point 시연 또는 사용 맥락
+- scene 마지막 (outro): CTA 또는 가격/구매 유도. 제품 패키지나 정렬된 컷 추천
+
+[규칙]
+- {variant_count}개 소구(variants)는 서로 다른 hook_type 사용{v6_section}
+- **각 variant 내에서 scenes는 정확히 {image_count}개이며, scenes의 source_image는 서로 달라야 한다. 같은 variant 안에서 img_N이 2번 이상 쓰이면 엄격히 탈락.**
+- 같은 source_image에 대한 i2v_prompt_baseline은 모든 variant에서 반드시 동일하게 사용하라. 즉 img_1은 파일 전체에서 하나의 i2v_prompt_baseline만 사용한다. variant 간 차별화는 scene 순서(timeline 배치)와 script_segment_brief 차이로 표현하라.
+- 전체 5개 variant에서 유니크 (source_image, i2v_prompt_baseline) 조합은 정확히 {image_count}개.
+- source_image는 반드시 실제 존재하는 이미지 번호 (img_1, img_2, ...)만 사용
+- source_reliability가 "low"면 informative/comparison 대신 empathy/scenario 비중을 높여라
+- forbidden_expressions에 있는 표현은 scene_intent/script_segment_brief에도 사용하지 마라
+
+[출력 JSON 스키마 — 마크다운 없이 순수 JSON]
+{
+  "schema_version": 2,
+  "image_count": {image_count},
+  "variants": [
+    {
+      "variant_id": "v1_informative",
+      "hook_type": "informative",
+      "direction": "스펙 중심 정보형",
+      "scenes": [
+        {
+          "scene_num": 1,
+          "source_image": "img_1",
+          "timeline": "intro",
+          "expected_duration_sec": 7,
+          "scene_intent": "한국어 묘사",
+          "script_segment_brief": "한국어 가이드",
+          "i2v_prompt_baseline": "English Veo prompt"
+        }
+      ]
+    }
+  ]
+}

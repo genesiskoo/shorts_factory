@@ -53,6 +53,13 @@ def serve_image(
     return FileResponse(path)
 
 
+_REGEN_NOCACHE = {
+    # 재생성 시 같은 URL로 파일이 바뀌므로 브라우저가 반드시 재검증하도록 강제.
+    # FileResponse가 Last-Modified를 자동 세팅 → 서버는 304/200으로 응답 분기.
+    "Cache-Control": "no-cache, must-revalidate",
+}
+
+
 @router.get("/{task_id}/audio/{variant_id}")
 def serve_audio(
     task_id: int,
@@ -67,7 +74,7 @@ def serve_audio(
     _safe_under(root, path)
     if not path.exists():
         raise HTTPException(404, "오디오 파일 없음")
-    return FileResponse(path, media_type="audio/mpeg")
+    return FileResponse(path, media_type="audio/mpeg", headers=_REGEN_NOCACHE)
 
 
 @router.get("/{task_id}/clip/{variant_id}/{clip_num}")
@@ -86,7 +93,7 @@ def serve_clip(
     _safe_under(root, path)
     if not path.exists():
         raise HTTPException(404, "클립 파일 없음")
-    return FileResponse(path, media_type="video/mp4")
+    return FileResponse(path, media_type="video/mp4", headers=_REGEN_NOCACHE)
 
 
 @router.get("/{task_id}/download/{variant_id}")

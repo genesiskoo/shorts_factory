@@ -9,9 +9,13 @@ capcut_builder.py — CapCut 프로젝트 JSON 빌더
 
 import copy
 import json
+import logging
 import shutil
+import subprocess
 import uuid
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 CAPCUT_PROJECTS = Path.home() / "AppData/Local/CapCut/User Data/Projects/com.lveditor.draft"
 
@@ -40,6 +44,82 @@ def _new_local_id() -> str:
 def _to_posix(path: Path) -> str:
     """Windows 경로를 CapCut이 인식하는 슬래시 형식으로 변환한다."""
     return path.as_posix()
+
+
+def _probe_duration_us(path: Path) -> "int | None":
+    """ffprobe로 mp4 duration(μs) 추출. ffprobe 미설치 또는 실패 시 None.
+
+    web/backend/services/clip_validator.probe_mp4와 동일한 ffprobe 호출 패턴이지만
+    scripts/는 web/ 백엔드에 의존성을 갖지 않도록 자체 구현. duration만 필요하므로
+    가벼운 stream만 조회.
+    """
+    if shutil.which("ffprobe") is None:
+        return None
+    try:
+        proc = subprocess.run(
+            [
+                "ffprobe", "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "json", str(path),
+            ],
+            capture_output=True, text=True, timeout=15,
+            encoding="utf-8", errors="replace",
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
+        logger.warning("ffprobe failed for %s: %s", path.name, e)
+        return None
+    if proc.returncode != 0:
+        logger.warning("ffprobe non-zero (%s): %s", path.name, proc.stderr[:200])
+        return None
+    try:
+        dur_str = (json.loads(proc.stdout).get("format") or {}).get("duration")
+        return int(float(dur_str) * 1_000_000) if dur_str else None
+    except (ValueError, TypeError, json.JSONDecodeError):
+        return None
+
+
+def _layout_video_segments(
+    video_clips: "list[Path]",
+    actual_durations_us: "list[int | None]",
+    target_total_us: int,
+) -> "list[tuple[int, int, int]]":
+    """각 클립의 (start_us, source_dur_us, target_dur_us) 산출.
+
+    source_dur는 항상 mp4 실제 길이로 잡아 CapCut이 mp4 끝 이후로 freeze 프레임을
+    생성하지 않도록 한다. 본문 if/elif가 마지막 클립 cut/freeze 보정을 수행.
+    actual_durations_us[i]가 None이면 fallback 값(균등 분할)을 caller가 채워야 한다.
+    """
+    n = len(video_clips)
+    starts: list[int] = []
+    cursor = 0
+    for d in actual_durations_us[:-1]:
+        starts.append(cursor)
+        cursor += int(d or 0)
+    starts.append(cursor)
+
+    layout: list[tuple[int, int, int]] = []
+    for i, dur in enumerate(actual_durations_us):
+        actual = int(dur or 0)
+        source_dur = actual
+        target_dur = actual
+        is_last = i == n - 1
+        # 이미 누적합이 target을 넘었거나 마지막 클립인 경우 → 보정.
+        # 중간 segment 오버슛도 cut 처리해 root_dur 오버슛 방지 (verifier MAJOR).
+        if starts[i] + actual > target_total_us:
+            target_dur = max(1, target_total_us - starts[i])
+            source_dur = min(actual, target_dur)
+        elif is_last:
+            # 마지막 segment: 남은 슬롯이 actual보다 크면 freeze로 채움
+            target_dur = max(actual, target_total_us - starts[i])
+        if is_last and target_dur - actual > 1_000_000:
+            logger.warning(
+                "capcut: last segment freeze gap %.1fs (mp4=%.1fs, slot=%.1fs) — "
+                "consider longer clip or shorter TTS",
+                (target_dur - actual) / 1_000_000,
+                actual / 1_000_000, target_dur / 1_000_000,
+            )
+        layout.append((starts[i], source_dur, target_dur))
+    return layout
 
 
 def _update_text_material_content(
@@ -124,8 +204,40 @@ def build_capcut_project(
     # ──────────────────────────────────────────────
     # 2. 총 길이 계산 (μs)
     # ──────────────────────────────────────────────
-    total_duration_us = int((tts_duration_sec + 2.0) * 1_000_000)
+    target_total_us = int((tts_duration_sec + 2.0) * 1_000_000)
     tts_duration_us = int(tts_duration_sec * 1_000_000)
+
+    # ffprobe로 각 mp4 실제 길이 측정. 미설치/실패 시 균등 분할로 fallback.
+    n_clips = len(video_clips)
+    probed_us: list[int | None] = [_probe_duration_us(p) for p in video_clips]
+    if any(d is None for d in probed_us):
+        # 실패 항목은 균등 분할값으로 채움 (전부 실패 시 기존 동작과 동일)
+        equal_dur = target_total_us // n_clips
+        remainder = target_total_us - equal_dur * n_clips
+        actual_durations_us: list[int | None] = []
+        for i, d in enumerate(probed_us):
+            actual_durations_us.append(
+                d if d is not None
+                else equal_dur + (remainder if i == n_clips - 1 else 0)
+            )
+        if all(d is None for d in probed_us):
+            logger.warning(
+                "capcut: ffprobe unavailable — falling back to equal split "
+                "(%d clips × ~%.1fs); freeze frames may occur",
+                n_clips, equal_dur / 1_000_000,
+            )
+        else:
+            logger.warning(
+                "capcut: ffprobe failed for %d/%d clips — partial fallback",
+                sum(1 for d in probed_us if d is None), n_clips,
+            )
+    else:
+        actual_durations_us = list(probed_us)
+
+    layout = _layout_video_segments(video_clips, actual_durations_us, target_total_us)
+    # timeline 총 길이는 마지막 segment의 끝 (start + target_dur)
+    last_start, _, last_target = layout[-1]
+    total_duration_us = last_start + last_target
 
     # ──────────────────────────────────────────────
     # 3. Track 0: 비디오 클립 교체
@@ -157,25 +269,20 @@ def build_capcut_project(
     # Track 0 segments 비우기
     draft["tracks"][TRACK_VIDEO]["segments"] = []
 
-    # 균등 분할 계산
-    n_clips = len(video_clips)
-    clip_dur_base = total_duration_us // n_clips
-    remainder = total_duration_us - clip_dur_base * n_clips
-
-    for i, clip_path in enumerate(video_clips):
+    for i, (clip_path, (start_us, source_dur, target_dur)) in enumerate(
+        zip(video_clips, layout)
+    ):
         mat_id = _new_id()
         seg_id = _new_id()
-
-        # 마지막 클립에 나머지 시간 추가
-        clip_dur = clip_dur_base + (remainder if i == n_clips - 1 else 0)
-        start_us = i * clip_dur_base
+        # material.duration은 mp4 실제 길이 (CapCut UI에서 클립 끝 표시용)
+        mat_dur = int(actual_durations_us[i] or source_dur)
 
         # 새 video material 생성
         new_mat = copy.deepcopy(video_mat_template)
         new_mat["id"] = mat_id
         new_mat["path"] = _to_posix(clip_path)
         new_mat["material_name"] = clip_path.name
-        new_mat["duration"] = clip_dur
+        new_mat["duration"] = mat_dur
         new_mat["local_material_id"] = _new_local_id()
         new_mat["unique_id"] = ""
         new_mat["origin_material_id"] = ""
@@ -184,7 +291,7 @@ def build_capcut_project(
         new_mat["aigc_item_id"] = ""
         # video_algorithm의 time_range도 업데이트
         if isinstance(new_mat.get("video_algorithm"), dict):
-            new_mat["video_algorithm"]["time_range"] = {"start": 0, "duration": clip_dur}
+            new_mat["video_algorithm"]["time_range"] = {"start": 0, "duration": mat_dur}
 
         draft["materials"]["videos"].append(new_mat)
 
@@ -192,8 +299,8 @@ def build_capcut_project(
         new_seg = copy.deepcopy(video_seg_template)
         new_seg["id"] = seg_id
         new_seg["material_id"] = mat_id
-        new_seg["target_timerange"] = {"start": start_us, "duration": clip_dur}
-        new_seg["source_timerange"] = {"start": 0, "duration": clip_dur}
+        new_seg["target_timerange"] = {"start": start_us, "duration": target_dur}
+        new_seg["source_timerange"] = {"start": 0, "duration": source_dur}
         new_seg["render_timerange"] = {"start": 0, "duration": 0}
         new_seg["extra_material_refs"] = []  # 새 클립은 기존 효과 refs 미적용
 
@@ -306,9 +413,13 @@ def build_capcut_project(
     seg_bgm["source_timerange"] = {"start": 0, "duration": total_duration_us}
 
     # ──────────────────────────────────────────────
-    # 9. 고정 요소 duration 일괄 업데이트 (Track 1~5, 7~8)
+    # 9. 고정 요소 duration 일괄 업데이트 (Track 1~5, 6, 7, 8)
+    # 상품명(track 6)도 영상 끝까지 노출해야 시청자에게 일관됨.
     # ──────────────────────────────────────────────
-    fixed_tracks = list(range(TRACK_FIXED_START, TRACK_FIXED_END + 1)) + [TRACK_CTA, TRACK_HAEOEJIKGU]
+    fixed_tracks = (
+        list(range(TRACK_FIXED_START, TRACK_FIXED_END + 1))
+        + [TRACK_PRODUCT_NAME, TRACK_CTA, TRACK_HAEOEJIKGU]
+    )
     for track_idx in fixed_tracks:
         if track_idx >= len(draft["tracks"]):
             continue
